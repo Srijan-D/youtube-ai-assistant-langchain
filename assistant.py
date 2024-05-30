@@ -1,43 +1,27 @@
-import json
-
-from langchain_anthropic import ChatAnthropic
-from langchain_community.tools.tavily_search import TavilySearchResults
-
-from langgraph.checkpoint.sqlite import SqliteSaver
-from langgraph.graph import END, MessageGraph
-from langgraph.prebuilt.tool_node import ToolNode
+from dotenv import find_dotenv, load_dotenv
+from langchain.llms import OpenAI
+from langchain import PromptTemplate
 
 
-# Define the function that determines whether to continue or not
-def should_continue(messages):
-    last_message = messages[-1]
-    # If there is no function call, then we finish
-    if not last_message.tool_calls:
-        return END
-    else:
-        return "action"
+load_dotenv(find_dotenv())
 
 
-# Define a new graph
-workflow = MessageGraph()
+llm = OpenAI(model_name="text-davinci-003")
+prompt = "Write a poem about python and ai"
+print(llm(prompt))
 
-tools = [TavilySearchResults(max_results=1)]
-model = ChatAnthropic(model="claude-3-haiku-20240307").bind_tools(tools)
-workflow.add_node("agent", model)
-workflow.add_node("action", ToolNode(tools))
 
-workflow.set_entry_point("agent")
+# --------------------------------------------------------------
+# Prompt Templates: Manage prompts for LLMs
+# --------------------------------------------------------------
 
-# Conditional agent -> action OR agent -> END
-workflow.add_conditional_edges(
-    "agent",
-    should_continue,
+prompt = PromptTemplate(
+    input_variables=["product"],
+    template="What is a good name for a company that makes {product}?",
 )
 
-# Always transition `action` -> `agent`
-workflow.add_edge("action", "agent")
+prompt.format(product="Smart Apps using Large Language Models (LLMs)")
 
-memory = SqliteSaver.from_conn_string(":memory:") # Here we only save in-memory
+llm = OpenAI()
 
-# Setting the interrupt means that any time an action is called, the machine will stop
-app = workflow.compile(checkpointer=memory, interrupt_before=["action"])
+
